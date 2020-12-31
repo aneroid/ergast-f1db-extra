@@ -9,29 +9,16 @@ _F1DB_DIR = 'f1db_csv'  # name auto-created by kaggle
 NA_VALUES = ['', '\\N']  # recommended for all f1db csv's
 
 
-csv_id_cols = {
-    'circuits.csv': 'circuitId',
-    'constructor_results.csv': 'constructorResultsId',
-    'constructor_standings.csv': 'constructorStandingsId',
-    'constructors.csv': 'constructorId',
-    'driver_standings.csv': 'driverStandingsId',
-    'drivers.csv': 'driverId',
-    'lap_times.csv': None,
-    'pit_stops.csv': None,
-    'qualifying.csv': 'qualifyId',
-    'races.csv': 'raceId',
-    'results.csv': 'resultId',
-    'seasons.csv': None,
-    'status.csv': 'statusId',
-}
 
-def load_data(filename, folder=_F1DB_DIR, *, convert_types=True, standard=True, use_id_idx=False):
+def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard=True, use_id_idx=False):
     r"""Convenience function to load each f1db file.
     
     Ignore default NaN values since they aren't used. Only the
     empty string ('') and `\N`s are used for missing data.
     
-    `convert_types=True` will convert_types the columns' dtypes to something appropriate.
+    `convert_types` will convert_types the columns' dtypes to something appropriate.
+    'reg_dtype' are the usual numpy dtypes. 'ext_type' are the newer Pandas
+    extension types, which don't have full functional parity yet. hint: idxmax
     
     `standard=True` will perform some standardisation to the columns
     of each file. Such as creating 'millisecond' columns from time strings.
@@ -41,24 +28,39 @@ def load_data(filename, folder=_F1DB_DIR, *, convert_types=True, standard=True, 
     """
     filename += '.csv' if not filename.endswith('.csv') else ''
     data = pd.read_csv(os.path.join(folder, filename), na_values=NA_VALUES, keep_default_na=False)
+    meta = pd.read_csv('meta.csv', dtype={'idx_col': 'Int8', 'sort_order': 'Int8'}, index_col='file')
     
-    if filename not in csv_id_cols:
+    if filename not in meta.index.values:
         # might be a new file, return without changes
         return data
+    meta = meta.loc[filename]
     if convert_types:
-        data = data.astype(get_type_dict(filename))
+        # re-read data with the preferred types
+        data = pd.read_csv(os.path.join(folder, filename), na_values=NA_VALUES, keep_default_na=False,
+                           **get_type_dict(filename, convert_types, meta))
     if standard:
         data = standard_data_func(filename)(data)
     if use_id_idx:
-        id_column = csv_id_cols[filename]
-        if id_column:
-            data.set_index(id_column, drop=False, inplace=True)
+        idx_data = meta[meta['idx_col'].notna()].get('field')
+        if any(idx_data):
+            data.set_index(idx_data.at[filename], drop=False, inplace=True)
     return data
 
-def get_type_dict(filename):
-    dtypes_data = pd.read_csv('dtypes.csv')
-    cols_types = dtypes_data[dtypes_data['file'] == filename][['field', 'dtype']]
-    return dict(zip(*cols_types.to_dict(orient='list').values()))
+def get_type_dict(filename, typeset, _meta):
+    """create a dict to pass to `read_csv` with the column types specified"""
+    if typeset not in ('reg_dtype', 'ext_type'):
+        raise ValueError("Pick one of: 'reg_dtype', 'ext_type'")
+    cols_types = _meta[['field', typeset]]
+    
+    dtypes = {}
+    parse_dates = []
+    for col, type_ in zip(*cols_types.to_dict(orient='list').values()):
+        if type_.startswith('datetime'):
+            parse_dates.append(col)
+        else:
+            dtypes[col] = type_
+    parse_dates = parse_dates or False
+    return {'dtype': dtypes, 'parse_dates': parse_dates, 'infer_datetime_format': True}
 
 def standard_data_func(filename):
     """looks for local functions with the name `stdrd_<filename>`"""
@@ -71,23 +73,43 @@ def stdrd_drivers(drivers):
     drivers['dob'] = ymd_to_dt(drivers['dob'])
     return drivers
 
+def stdrd_pit_stops(stops):
+    """Convert Driver DoB's to datetime64's"""
+    # if convert_types was False, this will still process for standard=True
+    stops['time'] = hms_to_dt(stops['time'])
+    return stops
+
 def stdrd_qualifying(qualis):
     """Add Qualifying times in milliseconds"""
     qualis[['q1ms', 'q2ms', 'q3ms']] = qualis.loc[:, 'q1':'q3'].apply(duration_to_ms)
     return qualis
 
+def stdrd_results(results):
+    results['fastestLapTime_ms'] = duration_to_ms(results['fastestLapTime'])
+    return results
+
 def duration_to_ms(series):
-    """Convert a Series of MM:SS.mmm (qualifying times)
-    to milliseconds, like `lap_times.csv`
+    """Convert a Series of [HH]:MM:SS.sss to milliseconds
+    (for mixed H:M:S.sss, M:S.sss and S.sss)
     """
-    t = series.str.split(':', expand=True)
-    assert len(t.columns) == 2, "Expected duration to split into MM and SS.sss"
-    return ((pd.to_numeric(t[0], errors='coerce') * 60 +
-             pd.to_numeric(t[1], errors='coerce')) * 1000).round().astype('UInt32')
+    # from https://stackoverflow.com/a/65483372/1431750
+    ts = series.astype('string').str.split(':')  # convert to 'string' extension type
+    rows = [i[::-1] if i is not pd.NA else [] for i in ts]
+    sec_min_hr = pd.DataFrame.from_records(rows).astype('float')
+    cols = len(sec_min_hr.columns)
+    assert cols <= 3, "Expected duration to split into 'HH', 'MM' and 'SS.sss' but got %d columns" % cols
+    multis = [1, 60, 3600][:cols]
+    return sec_min_hr.mul(1000).mul(multis).sum(axis=1, min_count=1).round().astype('UInt32')
 
 def ymd_to_dt(series):
     """Convert YYYY-MM-DD to np.datetime64's"""
-    return pd.to_datetime(series, yearfirst=True, format='%Y-%m-%d')#.dt.date
+    return pd.to_datetime(series, yearfirst=True, format='%Y-%m-%d')
+
+def hms_to_dt(series):
+    """Convert HH:MM:SS to np.datetime64's
+    (sets date to 1900-01-01 but allows the .dt accessor)
+    """
+    return pd.to_datetime(series, format='%H:%M:%S')
 
 def extract_f1db(f1db_zip=_F1DB_ZIP):
     if not os.path.exists(_F1DB_DIR):

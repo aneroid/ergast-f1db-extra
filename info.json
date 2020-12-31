@@ -1,18 +1,20 @@
 {
-	"LAST_COMPLETED_SEASON": 2020,
-	"CURRENT_SEASON": 2020,
-	"HYBRID_ERA_START": 2014,
-	"HYBRID_ERA_END": 2021,
-	"V6_MGUs_START": 2014,
-	"V6_MGUs_END": 2021,
-	"V8_START": 2006,
-	"V8_END": 2013,
-	"KERS_START": 2009,
-	"KERS_END": 2013,
-	"V10_START": 2000,
-	"V10_END": 2005,
-	"12CYL_START": 1989,
-	"12CYL_END": 1999,
-	"HANS_START": 2003,
-	"HALO_START": 2018
+	"year" : {
+		"_comment": "Single-valued years",
+		"LAST_COMPLETED_SEASON": 2020,
+		"CURRENT_SEASON": 2020
+	},
+	"period": {
+		"_comment": "Periods of Start & End years. `null` values = no current end",
+		"HYBRID_ERA": [2014, 2021],
+		"V6_MGUs": [2014, 2021],
+		"V8": [2006, 2013],
+		"KERS": [2009, 2013],
+		"V10": [2000, 2005],
+		"12CYL": [1989, 1999],
+		"HANS": [2003, null],
+		"HALO": [2018, null],
+		"NO_REFUELING": [2010, null],
+		"DRS": [2011, null]
+	}
 }
