@@ -9,8 +9,7 @@ _F1DB_DIR = 'f1db_csv'  # name auto-created by kaggle
 NA_VALUES = ['', '\\N']  # recommended for all f1db csv's
 
 
-
-def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard=True, use_id_idx=False):
+def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard=True, sort=True, use_id_idx=False):
     r"""Convenience function to load each f1db file.
     
     Ignore default NaN values since they aren't used. Only the
@@ -22,6 +21,8 @@ def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard
     
     `standard=True` will perform some standardisation to the columns
     of each file. Such as creating 'millisecond' columns from time strings.
+    
+    `sort=True` sorts df rows based on order in `meta.csv`.
     
     `use_id_idx=True` will set the index to the ID columns of the DB's,
     while also keeping the column (default False).
@@ -40,6 +41,9 @@ def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard
                            **get_type_dict(filename, convert_types, meta))
     if standard:
         data = standard_data_func(filename)(data)
+    if sort:
+        sort_fields = meta[meta['sort_order'].notna()].sort_values('sort_order')['field'].to_list()
+        data.sort_values(sort_fields, ignore_index=True, inplace=True)
     if use_id_idx:
         idx_data = meta[meta['idx_col'].notna()].get('field')
         if any(idx_data):
