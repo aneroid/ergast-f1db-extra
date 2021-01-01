@@ -38,7 +38,7 @@ def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard
     if convert_types:
         # re-read data with the preferred types
         data = pd.read_csv(os.path.join(folder, filename), na_values=NA_VALUES, keep_default_na=False,
-                           **get_type_dict(filename, convert_types, meta))
+                           **get_type_dict(convert_types, meta))
     if standard:
         data = standard_data_func(filename)(data)
     if sort:
@@ -50,7 +50,7 @@ def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard
             data.set_index(idx_data.at[filename], drop=False, inplace=True)
     return data
 
-def get_type_dict(filename, typeset, _meta):
+def get_type_dict(typeset, _meta):
     """create a dict to pass to `read_csv` with the column types specified"""
     if typeset not in ('reg_dtype', 'ext_type'):
         raise ValueError("Pick one of: 'reg_dtype', 'ext_type'")
