@@ -71,12 +71,6 @@ def standard_data_func(filename):
     func_name = 'stdrd_' + ''.join(l if l.isalnum() else '_' for l in filename[:-4])
     return globals().get(func_name, lambda x: x)
 
-def stdrd_drivers(drivers):
-    """Convert Driver DoB's to datetime64's"""
-    # if convert_types was False, this will still process for standard=True
-    drivers['dob'] = ymd_to_dt(drivers['dob'])
-    return drivers
-
 def stdrd_pit_stops(stops):
     """Convert Driver DoB's to datetime64's"""
     # if convert_types was False, this will still process for standard=True
@@ -89,6 +83,7 @@ def stdrd_qualifying(qualis):
     return qualis
 
 def stdrd_results(results):
+    """Add fastestLapTime in milliseconds"""
     results['fastestLapTime_ms'] = duration_to_ms(results['fastestLapTime'])
     return results
 
