@@ -71,12 +71,6 @@ def standard_data_func(filename):
     func_name = 'stdrd_' + ''.join(l if l.isalnum() else '_' for l in filename[:-4])
     return globals().get(func_name, lambda x: x)
 
-def stdrd_pit_stops(stops):
-    """Convert Driver DoB's to datetime64's"""
-    # if convert_types was False, this will still process for standard=True
-    stops['time'] = hms_to_dt(stops['time'])
-    return stops
-
 def stdrd_qualifying(qualis):
     """Add Qualifying times in milliseconds"""
     qualis[['q1ms', 'q2ms', 'q3ms']] = qualis.loc[:, 'q1':'q3'].apply(duration_to_ms)
