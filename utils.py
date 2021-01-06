@@ -76,6 +76,14 @@ def stdrd_qualifying(qualis):
     qualis[['q1ms', 'q2ms', 'q3ms']] = qualis.loc[:, 'q1':'q3'].apply(duration_to_ms)
     return qualis
 
+def stdrd_races(races):
+    """Add a column 'date_time' which combines the race's date and time
+    
+    Missing times are set to midnight. All times are in UTC, from source.
+    """
+    races['date_time'] = pd.to_datetime(races['date'].astype('string') + ' ' + races['time'].fillna('00:00:00'))
+    return races
+
 def stdrd_results(results):
     """Add fastestLapTime in milliseconds"""
     results['fastestLapTime_ms'] = duration_to_ms(results['fastestLapTime'])
