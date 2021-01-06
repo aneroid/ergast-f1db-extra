@@ -9,15 +9,19 @@ _F1DB_DIR = 'f1db_csv'  # name auto-created by kaggle
 NA_VALUES = ['', '\\N']  # recommended for all f1db csv's
 
 
-def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard=True, sort=True, use_id_idx=False):
+def load_data(filename, folder=_F1DB_DIR, *, typeset='reg_dtype', standard=True, sort=True, use_id_idx=False):
     r"""Convenience function to load each f1db file.
     
     Ignore default NaN values since they aren't used. Only the
     empty string ('') and `\N`s are used for missing data.
     
-    `convert_types` will convert_types the columns' dtypes to something appropriate.
-    'reg_dtype' are the usual numpy dtypes. 'ext_type' are the newer Pandas
-    extension types, which don't have full functional parity yet. hint: idxmax
+    `typeset` can be one of these values and will convert the columns' dtypes
+    to something appropriate, from 'meta.csv':
+      'reg_dtype' are the usual numpy dtypes.
+      'ext_type' are the newer Pandas extension types, which don't have full
+        functional parity yet. hint: idxmax/argmax.
+        Non-nullable numpy types will still be preferred where possible.
+      `False` will let `pd.read_csv()` determine the types.
     
     `standard=True` will perform some standardisation to the columns
     of each file. Such as creating 'millisecond' columns from time strings.
@@ -35,10 +39,10 @@ def load_data(filename, folder=_F1DB_DIR, *, convert_types='reg_dtype', standard
         # might be a new file, return without changes
         return data
     meta = meta.loc[filename]
-    if convert_types:
+    if typeset:
         # re-read data with the preferred types
         data = pd.read_csv(os.path.join(folder, filename), na_values=NA_VALUES, keep_default_na=False,
-                           **get_type_dict(convert_types, meta))
+                           **get_type_dict(typeset, meta))
     if standard:
         data = standard_data_func(filename)(data)
     if sort:
