@@ -42,7 +42,7 @@ def load_data(filename, folder=_F1DB_DIR, *, typeset='reg_dtype', standard=True,
     meta = meta.loc[filename]
     if typeset:
         # re-read data with the preferred types
-        data = pd.read_csv(os.path.join(folder, filename), na_values=NA_VALUES, keep_default_na=False,
+        data = pd.read_csv(os.path.join(WORKING_DIR, folder, filename), na_values=NA_VALUES, keep_default_na=False,
                            **get_type_dict(typeset, meta))
     if standard:
         data = standard_data_func(filename)(data)
