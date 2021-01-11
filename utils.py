@@ -4,7 +4,7 @@ import os
 import pandas as pd
 
 
-WORKING_DIR = '/kaggle/input'
+DATA_DIR = '/kaggle/input'
 _F1DB_ZIP = 'f1db_csv.zip'
 _F1DB_DIR = 'f1db_csv'  # name auto-created by kaggle
 NA_VALUES = ['', '\\N']  # recommended for all f1db csv's
@@ -33,8 +33,8 @@ def load_data(filename, folder=_F1DB_DIR, *, typeset='reg_dtype', standard=True,
     while also keeping the column (default False).
     """
     filename += '.csv' if not filename.endswith('.csv') else ''
-    data = pd.read_csv(os.path.join(WORKING_DIR, folder, filename), na_values=NA_VALUES, keep_default_na=False)
-    meta = pd.read_csv(os.path.join(WORKING_DIR, 'meta.csv'), dtype={'idx_col': 'Int8', 'sort_order': 'Int8'}, index_col='file')
+    data = pd.read_csv(os.path.join(DATA_DIR, folder, filename), na_values=NA_VALUES, keep_default_na=False)
+    meta = pd.read_csv(os.path.join(DATA_DIR, 'meta.csv'), dtype={'idx_col': 'Int8', 'sort_order': 'Int8'}, index_col='file')
     
     if filename not in meta.index.values:
         # might be a new file, return without changes
@@ -42,7 +42,7 @@ def load_data(filename, folder=_F1DB_DIR, *, typeset='reg_dtype', standard=True,
     meta = meta.loc[filename]
     if typeset:
         # re-read data with the preferred types
-        data = pd.read_csv(os.path.join(WORKING_DIR, folder, filename), na_values=NA_VALUES, keep_default_na=False,
+        data = pd.read_csv(os.path.join(DATA_DIR, folder, filename), na_values=NA_VALUES, keep_default_na=False,
                            **get_type_dict(typeset, meta))
     if standard:
         data = standard_data_func(filename)(data)
@@ -118,10 +118,10 @@ def hms_to_dt(series):
     return pd.to_datetime(series, format='%H:%M:%S')
 
 def extract_f1db(f1db_zip=_F1DB_ZIP):
-    parent = os.path.join(WORKING_DIR, _F1DB_DIR)
+    parent = os.path.join(DATA_DIR, _F1DB_DIR)
     if not os.path.exists(parent):
         os.makedirs(parent)
-    with zipfile.ZipFile(os.path.join(WORKING_DIR, f1db_zip)) as dbzip:
+    with zipfile.ZipFile(os.path.join(DATA_DIR, f1db_zip)) as dbzip:
         for obj in dbzip.infolist():  # should only contain files
             target = os.path.join(parent, obj.filename)
             with dbzip.open(obj.filename) as fp_z, open(target, 'wb') as fp_w:
